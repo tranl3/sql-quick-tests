@@ -1,10 +1,12 @@
+### Question 1
+
 In the table products at the car retailer database [database file: classicmodels (using PCs in the lab).sql], we can see buyPrice [the price that the company used to buy products], and MSRP [Manufacturer Suggested Retail Price]. 
 We assume that the difference between buyPrice and MSRP [MSRP - buyPrice] is the expected profit per product. 
 So, for the cars produced by the “Classic Cars” productLine, what is the name of the product that generates the highest total expected profit?
 
 The total expected profit = quantityInStock * expected profit per product.
 
-The MySQL code that generates the result:
+_The MySQL code that generates the result:_
 
 SELECT productName,
 ROUND(SUM(quantityInStock*(MSRP - buyPrice)), 1)
@@ -13,3 +15,65 @@ FROM products
 WHERE productLine='Classic Cars'
 GROUP BY productName
 ORDER BY Total_expected_profit DESC;
+
+### Question 2
+
+In the table orders at the car retailer database, what is the customerNumber of the customer who has the highest frequency of placing orders to the company in 2004 [orderDate in 2004]?
+You don’t need to consider whether the products have been finally shipped or not.
+
+_The MySQL code that generates the result:_
+
+SELECT customerNumber, COUNT(*) AS freq FROM orders
+WHERE YEAR(orderDate)=2004
+GROUP BY customerNumber
+ORDER BY freq DESC;
+
+### Question 3
+
+In the Chile database, let’s assume that an income less than 10,000 is a low_income; an income between 10,000 and 100,000 is a middle_income; an income higher than 100,000 is a high_income. 
+For females who voted yes to Pinochet, whether their income level is associated with their statusquo? 
+To answer this question, you need to provide the mean statusquo value for the females who voted yes to Pinochet in correspondence to their dif-\ferent income levels.
+
+_The MySQL code that generates the result:_
+
+ALTER TABLE chile ADD Income_level VARCHAR(15);
+UPDATE chile SET Income_level=CASE
+WHEN income<10000 THEN 'Low_income'
+WHEN income>100000 THEN 'High_income'
+ELSE 'Middle_income'
+END;
+SELECT Income_level, ROUND(AVG(statusquo), 3) AS Mean_statusquo
+FROM chile
+WHERE sex='F' AND vote='Y'
+GROUP BY Income_level
+ORDER BY Mean_statusquo DESC;
+
+### Question 4
+
+Based on the use of cfpb consumer complaint database (2500 rows), please count the frequency the complaints that satisfy the following three conditions at the same time: 
+i) consumer finally disputed with the company (Consumer_disputed); and 
+ii) were received on Friday (Data_received); and 
+iii) the difference between Data_received and Data_sent_to_company is more than 5 days.
+
+_The MySQL code that generates the result:_
+
+SELECT company, COUNT(*) AS freq
+FROM cfpb_complaints_2500
+WHERE Consumer_disputed='Yes' AND DAYNAME(Data_received)='Friday'
+AND DATEDIFF(Data_sent_to_company, Data_received)>5
+GROUP BY company
+ORDER BY freq DESC;
+
+### Question 5
+
+In the car retails database, please find the name of the product that generates most profit for the company (10 points). Assume all the orders were accepted and shipped with no cancellation!
+
+_The MySQL code that generates the result:_
+
+SELECT t1.productName,
+ROUND(SUM((t2.priceEach-t1.buyPrice)*t2.quantityOrdered), 2) AS profit
+FROM products AS t1
+JOIN orderdetails AS t2
+ON t1.productCode=t2.productCode
+GROUP BY t1.productName
+ORDER BY profit DESC;
