@@ -1,0 +1,13 @@
+Based on the use of cfpb consumer complaint database (2500 rows), please count the frequency the complaints that satisfy the following three conditions at the same time: 
+i) consumer finally disputed with the company (Consumer_disputed); and 
+ii) were received on Friday (Data_received); and 
+iii) the difference between Data_received and Data_sent_to_company is more than 5 days.
+
+_The MySQL code that generates the result:_
+
+SELECT company, COUNT(*) AS freq
+FROM cfpb_complaints_2500
+WHERE Consumer_disputed='Yes' AND DAYNAME(Data_received)='Friday'
+AND DATEDIFF(Data_sent_to_company, Data_received)>5
+GROUP BY company
+ORDER BY freq DESC;
