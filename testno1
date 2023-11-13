@@ -1,3 +1,15 @@
 In the table products at the car retailer database [database file: classicmodels (using PCs in the lab).sql], we can see buyPrice [the price that the company used to buy products], and MSRP [Manufacturer Suggested Retail Price]. 
 We assume that the difference between buyPrice and MSRP [MSRP - buyPrice] is the expected profit per product. 
 So, for the cars produced by the “Classic Cars” productLine, what is the name of the product that generates the highest total expected profit?
+
+The total expected profit = quantityInStock * expected profit per product.
+
+The MySQL code that generates the result:
+
+SELECT productName,
+ROUND(SUM(quantityInStock*(MSRP - buyPrice)), 1)
+AS Total_expected_profit
+FROM products
+WHERE productLine='Classic Cars'
+GROUP BY productName
+ORDER BY Total_expected_profit DESC;
