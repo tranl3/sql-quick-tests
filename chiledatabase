@@ -1,0 +1,16 @@
+In the Chile database, let’s assume that an income less than 10,000 is a low_income; an income between 10,000 and 100,000 is a middle_income; an income higher than 100,000 is a high_income. 
+For females who voted yes to Pinochet, whether their income level is associated with their statusquo? 
+
+_The MySQL code that generates the result:_
+
+ALTER TABLE chile ADD Income_level VARCHAR(15);
+UPDATE chile SET Income_level=CASE
+WHEN income<10000 THEN 'Low_income'
+WHEN income>100000 THEN 'High_income'
+ELSE 'Middle_income'
+END;
+SELECT Income_level, ROUND(AVG(statusquo), 3) AS Mean_statusquo
+FROM chile
+WHERE sex='F' AND vote='Y'
+GROUP BY Income_level
+ORDER BY Mean_statusquo DESC;
