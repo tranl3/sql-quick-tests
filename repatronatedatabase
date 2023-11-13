@@ -1,0 +1,81 @@
+Table “repatronage_review_assignment” has 16 columns and 5178 rows. Table “repatronage_user_assignment” has 3 columns and 4627 rows.
+Both tables have the same column “user_id”, and different users have different “user_id”. Null values in “user_id” indicate that the reviews were from anonymous reviewers. 
+Notice that, except that the column “country” in the table “repatronage_user_assignment” and a few lines of records are fake, all other data are derived from real reviews – so please don’t distribute the data.
+
+## Question 1
+
+A user may visit the same hotel multiple times. We want to know travelers from which country are more likely to revisit these hotels. 
+Thus, please compute the possibility that users from a specific country will revisit the same hotel. If a traveler visited the same hotel more than once, we defined this traveler as a re-patronage traveler.
+
+_The MySQL code that generates the result:_
+
+SELECT a.country, a.fre, b.fre2, a.fre/b.fre2 FROM 
+(SELECT country, COUNT(*) fre FROM repatronage_user_assignment 
+where user_id IN (SELECT user_id FROM (SELECT user_id, hotel_id, COUNT(*) fre FROM repatronage_review_assignment GROUP BY user_id, hotel_id HAVING fre > 1) as c) 
+GROUP BY country) a 
+JOIN
+(SELECT country, COUNT(*) fre2 FROM repatronage_user_assignment GROUP BY country) b ON a.country = b.country
+
+### or 
+
+ALTER TABLE `repatronage_user_assignment` ADD COLUMN `revisit` TINYINT(1) NULL DEFAULT NULL;
+UPDATE repatronage_user_assignment SET revisit = 0; 
+UPDATE repatronage_user_assignment SET revisit = 1 WHERE user_id IN 
+(SELECT user_id FROM (SELECT user_id, hotel_id, COUNT(*) fre FROM repatronage_review_assignment GROUP BY user_id, hotel_id HAVING fre > 1) as a);
+
+SELECT a.country, a.fre, b.fre2, a.fre/b.fre2 FROM (SELECT country, COUNT(*) fre FROM repatronage_user_assignment where revisit = 1 GROUP BY country) a 
+join (SELECT country, COUNT(*) fre2 FROM repatronage_user_assignment GROUP BY country) b ON a.country = b.country
+
+## Question 2
+
+Please compare the average hotel ratings given by re-patronage travelers to the same hotel with regard to their first and second visits to the hotel, respectively.
+
+_The MySQL code that generates the result:_
+
+ALTER TABLE repatronage_review_assignment ADD COLUMN `revisit` TINYINT(1) NULL DEFAULT NULL; 
+UPDATE repatronage_review_assignment SET revisit = 0; 
+UPDATE repatronage_review_assignment SET revisit = 1 WHERE (user_id, hotel_id) IN 
+(SELECT user_id, hotel_id FROM 
+(SELECT user_id, hotel_id, COUNT(*) fre FROM repatronage_review_assignment GROUP BY user_id, hotel_id HAVING fre > 1) as a);
+
+ALTER TABLE repatronage_review_assignment ADD COLUMN `orders` char(10) NULL DEFAULT NULL AFTER revisit;
+UPDATE repatronage_review_assignment SET orders = '1st' WHERE (user_id,hotel_id, review_date) IN
+(SELECT user_id,hotel_id, review_date FROM (SELECT user_id,hotel_id, min(review_date) AS review_date FROM repatronage_review_assignment where revisit = 1 GROUP BY user_id,hotel_id) a);
+UPDATE repatronage_review_assignment SET orders = '2nd' WHERE (user_id,hotel_id, review_date) IN (SELECT user_id,hotel_id, review_date FROM 
+(SELECT user_id,hotel_id, min(review_date) AS review_date FROM repatronage_review_assignment where revisit = 1 AND orders IS null GROUP BY user_id,hotel_id) a);
+
+SELECT orders, AVG(overall_rating),AVG(rooms_rating), AVG(service_rating), AVG(location_rating), AVG(value_rating) FROM repatronage_review_assignment where orders is not null GROUP BY orders;
+
+### or
+
+SELECT AVG(overall_rating),AVG(rooms_rating), AVG(service_rating), AVG(location_rating), AVG(value_rating) FROM repatronage_review_assignment
+WHERE
+(user_id,hotel_id, review_date) IN
+(SELECT user_id,hotel_id, review_date 
+FROM (SELECT user_id,hotel_id, min(review_date) AS review_date FROM repatronage_review_assignment WHERE
+user_id IN 
+(SELECT user_id FROM (SELECT user_id, hotel_id, COUNT(*) fre FROM repatronage_review_assignment GROUP BY user_id, hotel_id HAVING fre > 1) c) 
+GROUP BY user_id,hotel_id) a)
+
+### or
+
+SELECT AVG(overall_rating),AVG(rooms_rating), AVG(service_rating), AVG(location_rating), AVG(value_rating) FROM repatronage_review_assignment 
+WHERE (user_id,hotel_id, review_date) IN 
+(SELECT user_id,hotel_id, min(review_date) AS review_date FROM repatronage_review_assignment 
+WHERE
+(user_id,hotel_id, review_date) NOT IN 
+(SELECT user_id,hotel_id, review_date FROM (SELECT user_id,hotel_id, min(review_date) AS review_date FROM repatronage_review_assignment WHERE 
+user_id IN (SELECT user_id FROM (SELECT user_id, hotel_id, COUNT(*) fre FROM repatronage_review_assignment GROUP BY user_id, hotel_id HAVING fre > 1) c) 
+GROUP BY user_id,hotel_id) a) 
+AND user_id IN 
+(SELECT user_id FROM (SELECT user_id, hotel_id, COUNT(*) fre FROM repatronage_review_assignment GROUP BY user_id, hotel_id HAVING fre > 1) d) 
+GROUP BY user_id,hotel_id);
+
+## Question 3
+
+Compared the first lodging date and second lodging date of re-patronage travelers to the same hotel, which hotel tends to have the shortest average time between the first and second lodging dates of re-patronage travelers (4 points). 
+Please use review_date as lodging date.
+
+SELECT hotel_id, AVG(timeinterval) FROM 
+(SELECT a.user_id, a.hotel_id, a.review_date AS RD1, b.review_date AS RD2, DATEDIFF(b.review_date, a.review_date) as timeinterval from (SELECT user_id, hotel_id,review_date FROM repatronage_review_assignment WHERE orders = '1st') a 
+JOIN (SELECT user_id, hotel_id,review_date FROM repatronage_review_assignment WHERE orders = '2nd') b ON a.user_id = b.user_id AND a.hotel_id = b.hotel_id) c GROUP BY hotel_id
